@@ -16,6 +16,7 @@
 #include "process/scheduler_feedback.h"
 #include "process/wait.h"
 #include "sys/list_head.h"
+#include "system/panic.h"
 
 /// @brief Updates task execution statistics.
 /// @param task the task to update.
@@ -44,7 +45,7 @@ static inline task_struct *__scheduler_rr(runqueue_t *runqueue, bool_t skip_peri
         return runqueue->curr;
     }
     // This will hold a given entry, while iterating the list of tasks.
-    task_struct *entry = NULL;
+    task_struct *entry;
     // Search for the next task (we do not start from the head, so INSIDE, skip the head).
     list_for_each_decl(it, &runqueue->curr->run_list)
     {
@@ -66,7 +67,7 @@ static inline task_struct *__scheduler_rr(runqueue_t *runqueue, bool_t skip_peri
         return entry;
     }
 
-    return NULL;
+    return runqueue->curr;
 }
 
 /// @brief Is a non-preemptive algorithm, where each task is assigned a
@@ -385,6 +386,22 @@ task_struct *scheduler_pick_next_task(runqueue_t *runqueue)
 #else
 #error "You should enable a scheduling algorithm!"
 #endif
+
+    if (!next) {
+        // This will hold a given entry, while iterating the list of tasks.
+        task_struct *entry = NULL;
+        // Search for the next task (we do not start from the head, so INSIDE, skip the head).
+        list_for_each_decl(it, &runqueue->curr->run_list)
+        {
+            // Check if we reached the head of list_head, and skip it.
+            if (it == &runqueue->queue) {
+                continue;
+            }
+            // Get the current entry.
+            entry = list_entry(it, task_struct, run_list);
+            pr_warning("[%d] %s : %d\n", entry->pid, entry->name, entry->state);
+        }
+    }
 
     assert(next && "No valid task selected by the scheduling algorithm.");
 

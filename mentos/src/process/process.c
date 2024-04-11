@@ -4,10 +4,10 @@
 /// See LICENSE.md for details.
 
 // Setup the logging for this file (do this before any other include).
-#include "sys/kernel_levels.h"           // Include kernel log levels.
-#define __DEBUG_HEADER__ "[PROC  ]"      ///< Change header.
-#define __DEBUG_LEVEL__  LOGLEVEL_NOTICE ///< Set log level.
-#include "io/debug.h"                    // Include debugging functions.
+#include "sys/kernel_levels.h"          // Include kernel log levels.
+#define __DEBUG_HEADER__ "[PROC  ]"     ///< Change header.
+#define __DEBUG_LEVEL__  LOGLEVEL_DEBUG ///< Set log level.
+#include "io/debug.h"                   // Include debugging functions.
 
 #include "assert.h"
 #include "elf/elf.h"
@@ -117,7 +117,8 @@ static int __reset_process(task_struct *task)
 /// @brief Checks if the file starts with a shebang.
 /// @param file the file to check.
 /// @return 1 if it contains a shebang, 0 otherwise.
-static int __has_shebang(vfs_file_t *file) {
+static int __has_shebang(vfs_file_t *file)
+{
     char buf[2];
     vfs_read(file, buf, 0, sizeof(buf));
     return buf[0] == '#' && buf[1] == '!';
@@ -131,7 +132,7 @@ static int __has_shebang(vfs_file_t *file) {
 static int __load_executable(const char *path, task_struct *task, uint32_t *entry)
 {
     // Return code variable.
-    int ret = 0;
+    int ret              = 0;
     int interpreter_loop = 0;
 start:
     pr_debug("__load_executable(`%s`, %p `%s`, %p)\n", path, task, task->name, entry);
@@ -179,14 +180,14 @@ start:
         if (interpreter_loop) {
             ret = -ELOOP;
             // Free interpreter buffer
-            kfree((void*)path);
+            kfree((void *)path);
             goto close_and_return;
         }
 
         // Read shebang line
         char buf[PATH_MAX];
         ssize_t bytes_read = vfs_read(file, buf, 2, sizeof(buf));
-        buf[bytes_read] = 0;
+        buf[bytes_read]    = 0;
         vfs_close(file);
 
         // Find end of the line
@@ -210,7 +211,7 @@ start:
     // Free potential interpreter path
     if (interpreter_loop) {
         // Free interpreter buffer
-        kfree((void*)path);
+        kfree((void *)path);
     }
 
 close_and_return:
@@ -506,9 +507,9 @@ pid_t sys_fork(pt_regs *f)
     proc->sid  = current->sid;
     proc->pgid = current->pgid;
     proc->uid  = current->uid;
-    proc->ruid  = current->ruid;
+    proc->ruid = current->ruid;
     proc->gid  = current->gid;
-    proc->rgid  = current->rgid;
+    proc->rgid = current->rgid;
 
     // Active the new process.
     scheduler_enqueue_task(proc);

@@ -12,6 +12,7 @@
 #include "sys/unistd.h"
 #include "system/syscall_types.h"
 
+#if 0
 pid_t waitpid(pid_t pid, int *status, int options)
 {
     pid_t __res;
@@ -31,6 +32,12 @@ pid_t waitpid(pid_t pid, int *status, int options)
     }
     __syscall_return(pid_t, __res);
 }
+
+#else
+
+_syscall3(int, waitpid, pid_t, pid, int *, status, int, options)
+
+#endif
 
 pid_t wait(int *status)
 {

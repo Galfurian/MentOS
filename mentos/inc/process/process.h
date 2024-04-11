@@ -11,6 +11,7 @@
 #include "devices/fpu.h"
 #include "mem/paging.h"
 #include "stdbool.h"
+#include "wait.h"
 
 /// The maximum length of a name for a task_struct.
 #define TASK_NAME_MAX_LENGTH 100
@@ -157,6 +158,18 @@ typedef struct task_struct {
     termios_t termios;
     /// Buffer for managing inputs from keyboard.
     fs_rb_scancode_t keyboard_rb;
+
+    /// We store here the waitpid function data.
+    struct {
+        /// Wait queue entry.
+        wait_queue_entry_t *wait_queue_entry;
+        /// The pid specified by the task.
+        pid_t pid;
+        /// Pointer to the status variable.
+        int *status;
+        /// The pid of the process that caused the task to wake up.
+        pid_t wakeup_pid;
+    } waitpid_data;
 
     //==== Future work =========================================================
     // - task's attributes:

@@ -4,10 +4,10 @@
 /// See LICENSE.md for details.
 
 // Setup the logging for this file (do this before any other include).
-#include "sys/kernel_levels.h"           // Include kernel log levels.
-#define __DEBUG_HEADER__ "[SCHED ]"      ///< Change header.
-#define __DEBUG_LEVEL__  LOGLEVEL_NOTICE ///< Set log level.
-#include "io/debug.h"                    // Include debugging functions.
+#include "sys/kernel_levels.h"          // Include kernel log levels.
+#define __DEBUG_HEADER__ "[SCHED ]"     ///< Change header.
+#define __DEBUG_LEVEL__  LOGLEVEL_DEBUG ///< Set log level.
+#include "io/debug.h"                   // Include debugging functions.
 
 #include "assert.h"
 #include "descriptor_tables/tss.h"
@@ -109,6 +109,14 @@ void scheduler_enqueue_task(task_struct *process)
     // Increment the number of active processes.
     ++runqueue.num_active;
 
+    pr_notice("RUNQUEUE:\n");
+    task_struct *entry = NULL;
+    list_for_each_decl(it, &runqueue.queue)
+    {
+        entry = list_entry(it, task_struct, run_list);
+        pr_notice("[%d] %s\n", entry->pid, entry->name);
+    }
+
 #ifdef ENABLE_SCHEDULER_FEEDBACK
     scheduler_feedback_task_add(process);
 #endif
@@ -117,12 +125,30 @@ void scheduler_enqueue_task(task_struct *process)
 void scheduler_dequeue_task(task_struct *process)
 {
     assert(process && "Received a NULL process.");
+    if (process == runqueue.curr) {
+        // Get the next process.
+        list_head *next = process->run_list.next;
+        // Check if we reached the head of list_head.
+        if (next == &runqueue.queue) {
+            next = next->next;
+        }
+        // Update the current running process.
+        runqueue.curr = list_entry(next, task_struct, run_list);
+    }
     // Delete the process from the list of running processes.
     list_head_remove(&process->run_list);
     // Decrement the number of active processes.
     --runqueue.num_active;
     if (process->se.is_periodic) {
         runqueue.num_periodic--;
+    }
+
+    pr_notice("RUNQUEUE:\n");
+    task_struct *entry = NULL;
+    list_for_each_decl(it, &runqueue.queue)
+    {
+        entry = list_entry(it, task_struct, run_list);
+        pr_notice("[%d] %s\n", entry->pid, entry->name);
     }
 
 #ifdef ENABLE_SCHEDULER_FEEDBACK
@@ -147,6 +173,7 @@ void scheduler_run(pt_regs *f)
     if (!do_signal(f)) {
 #if 1
         if (runqueue.curr->state == EXIT_ZOMBIE) {
+            pr_notice("Current process is a zombie, moving to the next.\n");
             //==== Handle Zombies =================================================
             //pr_debug("Handle zombie %d\n", runqueue.curr->pid);
             // get the next process after the current one
@@ -531,124 +558,189 @@ int sys_nice(int increment)
     return actualNice;
 }
 
+/// Contains all process waiting for a child to terminate.
+static wait_queue_head_t waitpid_queue;
+
+static inline pid_t __free_child_memory(task_struct *parent, pid_t child_pid, pid_t control_pid, int *status)
+{
+    // pr_debug("__free_child_memory(%p, %u, %u, %p)\n", parent, child_pid, control_pid, status);
+    // Get the child associated with the child pid.
+    task_struct *child = scheduler_get_running_process(child_pid);
+    // Check the child.
+    if (child == NULL) {
+        return 0;
+    }
+    // If the child is not in a zombie state, keep searching.
+    if (child->state != EXIT_ZOMBIE) {
+        return 0;
+    }
+    // If a pid was provided, and is different from the pid we are
+    // exhamining, skip it.
+    if ((control_pid > 1) && (control_pid != child->pid)) {
+        return 0;
+    }
+    // Save the state (TODO: Improve status set).
+    if (status) {
+        (*status) = child->exit_code;
+    }
+    // Dequeue the task.
+    scheduler_dequeue_task(child);
+    // Remove child from children of parent.
+    list_head_remove(&child->sibling);
+    // Finalize the VFS structures.
+    vfs_destroy_task(child);
+    // Free the space occupied by the stack.
+    destroy_process_image(child->mm);
+    pr_debug("Process %d is releaseing resources of process %d.\n", parent->pid, child_pid);
+    return child_pid;
+}
+
+/// @brief The default wake function, a wrapper for try_to_wake_up.
+/// @param wait The pointer to the wait queue.
+/// @param mode The type of wait (TASK_INTERRUPTIBLE or TASK_UNINTERRUPTIBLE).
+/// @param sync Specifies if the wakeup should be synchronous.
+/// @return 1 on success, 0 on failure.
+static inline int wake_up_wait_child(wait_queue_entry_t *wait, unsigned mode, int sync)
+{
+    pr_debug("wake_up_wait_child(%p, %u, %d)\n", wait, mode, sync);
+    // Only tasks in the state TASK_UNINTERRUPTIBLE can be woke up
+    if (wait->task->state == TASK_UNINTERRUPTIBLE || wait->task->state == TASK_STOPPED) {
+        wait->task->state = TASK_RUNNING;
+        // Try to free the memory of a child.
+        pid_t cpid = __free_child_memory(
+            wait->task,
+            wait->task->waitpid_data.wakeup_pid,
+            wait->task->waitpid_data.pid,
+            wait->task->waitpid_data.status);
+        // If we actually freed the memory, delete also the task_struct, and return.
+        if (cpid) {
+            pr_debug("Process %d is finally deleting process %d.\n", wait->task->pid, cpid);
+            // Get the child.
+            task_struct *child = scheduler_get_running_process(cpid);
+            // Delete the task_struct.
+            kmem_cache_free(wait->task);
+            return cpid;
+        }
+    }
+    return 0;
+}
+
 pid_t sys_waitpid(pid_t pid, int *status, int options)
 {
-    task_struct *current_process, *entry;
     // Get the current process.
-    current_process = scheduler_get_current_process();
+    task_struct *task = scheduler_get_current_process();
     // Check the current task.
-    if (current_process == NULL) {
+    if (task == NULL) {
         kernel_panic("There is no current process!");
+    }
+    if (task->pid != 1) {
+        pr_debug("sys_waitpid(%d, %p, %d) Process %d is waiting...\n", pid, status, options, task->pid);
     }
     // For now we do not support waiting for processes inside the given process
     // group (pid < -1).
     if ((pid < -1) || (pid == 0)) {
+        pr_err("Received wrong pid request.\n");
         return -ESRCH;
     }
     // Check if the pid we are waiting for is the process itself.
-    if (pid == current_process->pid) {
+    if (pid == task->pid) {
+        pr_err("Process is waiting on itself.\n");
         return -ECHILD;
     }
     // Check if the options are one of: WNOHANG, WUNTRACED.
-    if ((options != 0) && !bit_check(options, WNOHANG) && !bit_check(options, WUNTRACED)) {
+    if ((options != 0) && !(options & (WNOHANG | WUNTRACED))) {
+        pr_err("The options %d are not valid\n", options);
         return -EINVAL;
     }
     // Check if there are children to wait.
-    if (list_head_empty(&current_process->children)) {
+    if (list_head_empty(&task->children)) {
+        pr_err("The process has no child.\n");
         return -ECHILD;
     }
-    // Iterate the children.
-    list_for_each_decl(it, &current_process->children)
-    {
-        // Get the entry.
-        entry = list_entry(it, task_struct, sibling);
-        // Check the entry.
-        if (entry == NULL) {
-            continue;
+    // Free child memory.
+    if ((options & WNOHANG)) {
+        task_struct *entry;
+        // Iterate the children.
+        list_for_each_decl(it, &task->children)
+        {
+            // Get the entry.
+            entry = list_entry(it, task_struct, sibling);
+            // Try to free the memory of a child.
+            pid_t cpid = __free_child_memory(task, entry->pid, pid, status);
+            // If we actually freed the memory, delete also the task_struct, and return.
+            if (cpid) {
+                pr_debug("Process %d is finally deleting process %d.\n", task->pid, cpid);
+                // Delete the task_struct.
+                kmem_cache_free(entry);
+                return cpid;
+            }
         }
-        // If the entry is not in a zombie state, keep searching.
-        if (entry->state != EXIT_ZOMBIE) {
-            continue;
-        }
-        // If a pid was provided, and is different from the pid we are
-        // exhamining, skip it.
-        if ((pid > 1) && (entry->pid != pid)) {
-            continue;
-        }
-        // Save the pid to return.
-        pid_t ppid = entry->pid;
-        // Save the state (TODO: Improve status set).
-        if (status) {
-            (*status) = entry->exit_code;
-        }
-        // Finalize the VFS structures.
-        vfs_destroy_task(entry);
-        // Remove entry from children of parent.
-        list_head_remove(&entry->sibling);
-        // Remove entry from the scheduling queue.
-        scheduler_dequeue_task(entry);
-        // Delete the task_struct.
-        kmem_cache_free(entry);
-        pr_debug("Process %d is freeing memory of process %d.\n", current_process->pid, ppid);
-        return ppid;
+        return -ECHILD;
     }
+
+    task->waitpid_data.wait_queue_entry       = sleep_on(&waitpid_queue);
+    task->waitpid_data.wait_queue_entry->func = wake_up_wait_child;
+    task->waitpid_data.pid                    = pid;
+    task->waitpid_data.status                 = status;
+
+    pr_debug("sys_waitpid(%d, %p, %d): Process %d waiting on %d and goes to sleep...\n", pid, status, options, task->pid, pid);
+
     return 0;
 }
 
 void do_exit(int exit_code)
 {
     // Get the current task.
-    if (runqueue.curr == NULL) {
+    task_struct *task = runqueue.curr;
+    if (task == NULL) {
         kernel_panic("There is no current process!");
     }
-
-    // Get the process.
-    task_struct *init_proc = scheduler_get_running_process(1);
-    if (runqueue.curr == init_proc) {
-        kernel_panic("Init process cannot call sys_exit!");
-    }
-
-    // Set the termination code of the process.
-    runqueue.curr->exit_code = exit_code;
-    // Set the state of the process to zombie.
-    runqueue.curr->state = EXIT_ZOMBIE;
-    // Send a SIGCHLD to the parent process.
-    if (runqueue.curr->parent) {
-        int ret = sys_kill(runqueue.curr->parent->pid, SIGCHLD);
-        if (ret == -1) {
-            pr_err("[%d] %5d failed sending signal %d : %s\n", ret, runqueue.curr->parent->pid,
-                   SIGCHLD, strerror(errno));
-        }
-    }
-
-    // If it has children, then init process has to take care of them.
-    if (!list_head_empty(&runqueue.curr->children)) {
-        pr_debug("Moving children of %s(%d) to init(%d): {\n",
-                 runqueue.curr->name, runqueue.curr->pid, init_proc->pid);
-        // Change the parent.
-        pr_debug("Moving children (%d): {\n", init_proc->pid);
-        list_for_each_decl(it, &runqueue.curr->children)
-        {
-            task_struct *entry = list_entry(it, task_struct, sibling);
-            pr_debug("    [%d] %s\n", entry->pid, entry->name);
-            entry->parent = init_proc;
-        }
-        pr_debug("}\n");
-        // Plug the list of children.
-        list_head_append(&init_proc->children, &runqueue.curr->children);
-        // Print the list of children.
-        pr_debug("New list of init children (%d): {\n", init_proc->pid);
-        list_for_each_decl(it, &init_proc->children)
-        {
-            task_struct *entry = list_entry(it, task_struct, sibling);
-            pr_debug("    [%d] %s\n", entry->pid, entry->name);
-        }
-        pr_debug("}\n");
-    }
-    // Free the space occupied by the stack.
-    destroy_process_image(runqueue.curr->mm);
     // Debugging message.
-    pr_debug("Process %d exited with value %d\n", runqueue.curr->pid, exit_code);
+    pr_debug("Process %d is exiting with value %d...\n", task->pid, exit_code);
+    // If it has children, then init process has to take care of them.
+    if (!list_head_empty(&task->children)) {
+        // Get the process.
+        task_struct *init = scheduler_get_running_process(1);
+        if (task == init) {
+            kernel_panic("Init process cannot call sys_exit!");
+        }
+        // Change the parent.
+        list_for_each_decl(it, &task->children)
+        {
+            list_entry(it, task_struct, sibling)->parent = init;
+        }
+        // Plug the list of children.
+        list_head_append(&init->children, &task->children);
+    }
+    // Get the parent.
+    task_struct *parent = task->parent;
+    // Check that we have a parent.
+    assert(parent && "The process has no valid parent.");
+    // Send SIGCHLD.
+    pr_debug("Sending SIGCHLD to parent %d...\n", parent->pid);
+    int ret = sys_kill(parent->pid, SIGCHLD);
+    if (ret == -1) {
+        pr_err("[%d] %5d failed sending signal %d : %s\n", ret, parent->pid, SIGCHLD, strerror(errno));
+    }
+    // Set the termination code of the process.
+    task->exit_code = exit_code;
+    // Set the state of the process to zombie.
+    task->state = EXIT_ZOMBIE;
+    // Get the wait_queue_entry.
+    wait_queue_entry_t *wait_queue_entry = parent->waitpid_data.wait_queue_entry;
+    // Set the pid of task that waked the parent up.
+    parent->waitpid_data.wakeup_pid = task->pid;
+    // Executed entry's wakeup test function.
+    if (wait_queue_entry) {
+        pr_debug("Waking up process %d from waitpid...\n", wait_queue_entry->task->pid);
+        if (wait_queue_entry->func(wait_queue_entry, 0, 0) == 1) {
+            // Removes entry from list and memory.
+            remove_wait_queue(&waitpid_queue, wait_queue_entry);
+            // Free the memory of the wait queue item.
+            wait_queue_entry_dealloc(wait_queue_entry);
+        }
+    }
+    pr_debug("Done executing do_exit.\n");
 }
 
 void sys_exit(int exit_code)
