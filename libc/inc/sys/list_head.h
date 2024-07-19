@@ -7,6 +7,8 @@
 
 #include "stddef.h"
 
+#include "assert.h"
+
 /// @brief Structure used to implement the list_head data structure.
 typedef struct list_head {
     /// @brief The previous element.
@@ -128,6 +130,8 @@ static inline void list_head_remove(list_head *entry)
 {
     // Check if the element is actually in a list.
     if (!list_head_empty(entry)) {
+        assert(entry->prev && "Entry->prev is not properly set.");
+        assert(entry->next && "Entry->next is not properly set.");
         // We link the `previous` element to the `next` one.
         entry->prev->next = entry->next;
         // We link the `next` element to the `previous` one.
@@ -162,6 +166,10 @@ static inline void list_head_append(list_head *main, list_head *secondary)
 {
     // Check that both lists are actually filled with entries.
     if (!list_head_empty(main) && !list_head_empty(secondary)) {
+        assert(main->prev && "Main->prev is not properly set.");
+        assert(main->next && "Main->prev is not properly set.");
+        assert(secondary->prev && "Secondary->prev is not properly set.");
+        assert(secondary->next && "Secondary->next is not properly set.");
         // Connect the last element of the main list to the first one of the secondary list.
         main->prev->next = secondary->next;
         // Connect the first element of the secondary list to the last one of the main list.
