@@ -21,6 +21,7 @@
 #include "drivers/mem.h"
 #include "fs/ext2.h"
 #include "fs/procfs.h"
+#include "fs/devfs.h"
 #include "fs/vfs.h"
 #include "hardware/pic8259.h"
 #include "hardware/timer.h"
@@ -39,6 +40,7 @@
 #include "sys/shm.h"
 #include "system/syscall.h"
 #include "version.h"
+#include "sys/stat.h"
 
 /// Describe start address of grub multiboot modules.
 char *module_start[MAX_MODULES];
@@ -214,6 +216,27 @@ int kmain(boot_info_t *boot_informations)
     printf("Initialize the filesystem...");
     vfs_init();
     print_ok();
+
+#if 0
+    //==========================================================================
+    pr_notice("    Initialize 'devfs'...\n");
+    printf("    Initialize 'devfs'...");
+    if (devfs_module_init()) {
+        print_fail();
+        pr_emerg("Failed to register `devfs`!\n");
+        return 1;
+    }
+    print_ok();
+
+    //==========================================================================
+    pr_notice("    Mounting 'devfs'...\n");
+    printf("    Mounting 'devfs'...");
+    if (vfs_mount("devfs", "/dev", NULL)) {
+        pr_emerg("Failed to mount devfs at `/dev`!\n");
+        return 1;
+    }
+    print_ok();
+#endif
 
     //==========================================================================
     // Scan for ata devices.
@@ -409,8 +432,8 @@ int kmain(boot_info_t *boot_informations)
     //==========================================================================
     // TODO: fix the hardcoded check for the flags set by GRUB
     runtests = boot_info.multiboot_header->flags == 0x1a67 &&
-        bitmask_check(boot_info.multiboot_header->flags, MULTIBOOT_FLAG_CMDLINE) &&
-        strcmp((char *)boot_info.multiboot_header->cmdline, "runtests") == 0;
+               bitmask_check(boot_info.multiboot_header->flags, MULTIBOOT_FLAG_CMDLINE) &&
+               strcmp((char *)boot_info.multiboot_header->cmdline, "runtests") == 0;
 
     task_struct *init_p;
     if (runtests) {

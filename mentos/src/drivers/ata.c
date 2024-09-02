@@ -27,6 +27,7 @@
 #include "string.h"
 #include "sys/errno.h"
 #include "system/panic.h"
+#include "fs/devfs.h"
 
 /// @brief IDENTIFY device data (response to 0xEC).
 typedef struct ata_identity_t {
@@ -1240,6 +1241,8 @@ static vfs_file_t *ata_device_create(ata_device_t *dev)
     // Change the operations.
     file->sys_operations = &ata_sys_operations;
     file->fs_operations  = &ata_fs_operations;
+    // 
+    // devfs_create_entry(dev->name);
     return file;
 }
 

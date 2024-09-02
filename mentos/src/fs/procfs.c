@@ -73,7 +73,7 @@ typedef struct procfs_t {
 } procfs_t;
 
 /// The procfs filesystem.
-procfs_t fs;
+static procfs_t fs;
 
 // ============================================================================
 // Forward Declaration of Functions
@@ -843,15 +843,23 @@ static vfs_file_t *procfs_mount_callback(const char *path, const char *device)
 {
     pr_debug("procfs_mount_callback(%s, %s)\n", path, device);
     // Create the new procfs file.
-    procfs_file_t *procfs_file = procfs_create_file(path, DT_DIR);
-    assert(procfs_file && "Failed to create procfs_file.");
+    procfs_file_t *root = procfs_create_file(path, DT_DIR);
+    if (!root) {
+        pr_err("Cannot create mount point `%s` for device `%s`.\n", path, device);
+        return NULL;
+    }
+    // Set the mask.
+    root->mask = S_IRUSR | S_IXUSR | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH;
     // Create the associated file.
-    vfs_file_t *vfs_file = procfs_create_file_struct(procfs_file);
-    assert(vfs_file && "Failed to create vfs_file.");
-    // Add the vfs_file to the list of associated files.
-    list_head_insert_before(&vfs_file->siblings, &procfs_file->files);
+    vfs_file_t *file = procfs_create_file_struct(root);
+    if (!file) {
+        pr_err("Cannot create VFS file for `%s` and device `%s`.\n", path, device);
+        return NULL;
+    }
+    // Add the file to the list of associated files.
+    list_head_insert_before(&file->siblings, &root->files);
     // Initialize the proc_root.
-    return vfs_file;
+    return file;
 }
 
 /// Filesystem information.

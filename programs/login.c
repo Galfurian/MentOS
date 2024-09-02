@@ -180,6 +180,7 @@ int main(int argc, char **argv)
     passwd_t *pwd;
     char username[CREDENTIALS_LENGTH], password[CREDENTIALS_LENGTH];
     do {
+#if 0
         // Get the username.
         do {
             printf("Username: ");
@@ -188,6 +189,10 @@ int main(int argc, char **argv)
         do {
             printf("Password: ");
         } while (!__get_input(password, sizeof(password), true));
+#else
+        strcpy(username, "user");
+        strcpy(password, "user");
+#endif
 
         // Check if we can find the user.
         if ((pwd = getpwnam(username)) == NULL) {
