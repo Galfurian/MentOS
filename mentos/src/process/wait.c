@@ -4,10 +4,10 @@
 /// See LICENSE.md for details.
 
 // Setup the logging for this file (do this before any other include).
-#include "sys/kernel_levels.h"          // Include kernel log levels.
-#define __DEBUG_HEADER__ "[WAIT  ]"     ///< Change header.
+#include "sys/kernel_levels.h"           // Include kernel log levels.
+#define __DEBUG_HEADER__ "[WAIT  ]"      ///< Change header.
 #define __DEBUG_LEVEL__  LOGLEVEL_NOTICE ///< Set log level.
-#include "io/debug.h"                   // Include debugging functions.
+#include "io/debug.h"                    // Include debugging functions.
 
 #include "process/wait.h"
 #include "mem/slab.h"
@@ -58,9 +58,14 @@ void wait_queue_entry_dealloc(wait_queue_entry_t *wait_queue_entry)
 
 void init_waitqueue_entry(wait_queue_entry_t *wq, struct task_struct *task)
 {
+    // Clean the memory.
+    memset(wq, 0, sizeof(wait_queue_entry_t));
+    // Initialize the wait queue.
     wq->flags = 0;
     wq->task  = task;
     wq->func  = default_wake_function;
+    // Initialize the task list.
+    list_head_init(&wq->task_list);
 }
 
 void add_wait_queue(wait_queue_head_t *head, wait_queue_entry_t *wq)
