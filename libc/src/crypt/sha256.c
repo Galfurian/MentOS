@@ -59,7 +59,10 @@ void sha256_bytes_to_hex(uint8_t *src, size_t src_length, char *out, size_t out_
     }
 }
 
-void sha256_transform(SHA256_ctx_t *ctx, const uint8_t data[])
+/// @brief Core of the algorithm, it hashes 512-bit blocks.
+/// @param ctx the context to use.
+/// @param data the data to hash.
+static inline void sha256_transform(SHA256_ctx_t *ctx, const uint8_t data[])
 {
     uint32_t a, b, c, d, e, f, g, h, i, j, t1, t2, m[SHA256_MAX_DATA_LENGTH];
 

@@ -13,8 +13,8 @@
 
 /// @brief Resolve the path by following all symbolic links.
 /// @param path The path to resolve.
-/// @param buffer The buffer where the resolved path is stored.
+/// @param abspath The buffer where the resolved path is stored.
 /// @param buflen The size of the provided resolved_path buffer.
 /// @param flags The flags controlling how the path is resolved.
 /// @return -errno on fail, 1 on success.
-int resolve_path(const char *path, char *buffer, size_t buflen, int flags);
+int resolve_path(const char *path, char *abspath, size_t buflen, int flags);

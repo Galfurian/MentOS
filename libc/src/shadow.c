@@ -12,103 +12,120 @@
 #include <sys/stat.h>
 #include <ctype.h>
 
-static long xatol(char **s)
+#define LINE_LIM 256 ///< Maximum width of a line inside the shadow database.
+
+/// @brief Convert a string representation of a number to a long integer.
+/// @param s Pointer to a string pointer, which points to the string to be
+/// converted. The function increments the string pointer as it processes the
+/// input.
+/// @return The long integer representation of the number in the string. Returns
+/// -1 if the first character is a ':' or '\n'.
+static inline long xatol(char **s)
 {
-	long x;
-	if (**s == ':' || **s == '\n') return -1;
-	for (x=0; **s-'0'<10U; ++*s) x=10*x+(**s-'0');
-	return x;
+    long x;
+    // If the first character is ':' or a newline, return -1
+    if (**s == ':' || **s == '\n') { return -1; }
+    // Initialize x to 0 and convert the string to a long integer
+    // The loop continues as long as the current character is a digit ('0' to '9')
+    for (x = 0; **s - '0' < 10U; ++*s) { x = 10 * x + (**s - '0'); }
+    // Return the converted long integer.
+    return x;
 }
 
 int __parsespent(char *s, struct spwd *sp)
 {
-	sp->sp_namp = s;
-	if (!(s = strchr(s, ':'))) return -1;
-	*s = 0;
+    sp->sp_namp = s;
+    if (!(s = strchr(s, ':'))) return -1;
+    *s = 0;
 
-	sp->sp_pwdp = ++s;
-	if (!(s = strchr(s, ':'))) return -1;
-	*s = 0;
+    sp->sp_pwdp = ++s;
+    if (!(s = strchr(s, ':'))) return -1;
+    *s = 0;
 
-	s++; sp->sp_lstchg = xatol(&s);
-	if (*s != ':') return -1;
+    s++;
+    sp->sp_lstchg = xatol(&s);
+    if (*s != ':') return -1;
 
-	s++; sp->sp_min = xatol(&s);
-	if (*s != ':') return -1;
+    s++;
+    sp->sp_min = xatol(&s);
+    if (*s != ':') return -1;
 
-	s++; sp->sp_max = xatol(&s);
-	if (*s != ':') return -1;
+    s++;
+    sp->sp_max = xatol(&s);
+    if (*s != ':') return -1;
 
-	s++; sp->sp_warn = xatol(&s);
-	if (*s != ':') return -1;
+    s++;
+    sp->sp_warn = xatol(&s);
+    if (*s != ':') return -1;
 
-	s++; sp->sp_inact = xatol(&s);
-	if (*s != ':') return -1;
+    s++;
+    sp->sp_inact = xatol(&s);
+    if (*s != ':') return -1;
 
-	s++; sp->sp_expire = xatol(&s);
-	if (*s != ':') return -1;
+    s++;
+    sp->sp_expire = xatol(&s);
+    if (*s != ':') return -1;
 
-	s++; sp->sp_flag = xatol(&s);
-	if (*s != '\n') return -1;
-	return 0;
+    s++;
+    sp->sp_flag = xatol(&s);
+    if (*s != '\n') return -1;
+    return 0;
 }
 
 int getspnam_r(const char *name, struct spwd *sp, char *buf, size_t size, struct spwd **res)
 {
-	char path[20+NAME_MAX];
-	int rv = 0;
-	int fd;
-	size_t k, l = strlen(name);
-	int skip = 0;
-	int cs;
-	int orig_errno = errno;
+    char path[20 + NAME_MAX];
+    int rv = 0;
+    int fd;
+    size_t k, l = strlen(name);
+    int skip = 0;
+    int cs;
+    int orig_errno = errno;
 
-	*res = 0;
+    *res = 0;
 
-	/* Disallow potentially-malicious user names */
-	if (*name=='.' || strchr(name, '/') || !l)
-		return errno = EINVAL;
+    /* Disallow potentially-malicious user names */
+    if (*name == '.' || strchr(name, '/') || !l)
+        return errno = EINVAL;
 
-	/* Buffer size must at least be able to hold name, plus some.. */
-	if (size < l+100)
-		return errno = ERANGE;
+    /* Buffer size must at least be able to hold name, plus some.. */
+    if (size < l + 100)
+        return errno = ERANGE;
 
-	fd = open(SHADOW, O_RDONLY, 0);
-	if (fd < 0) {
-		return errno;
-	}
+    fd = open(SHADOW, O_RDONLY, 0);
+    if (fd < 0) {
+        return errno;
+    }
 
-	while (fgets(buf, size, fd) && (k=strlen(buf))>0) {
-		if (skip || strncmp(name, buf, l) || buf[l]!=':') {
-			skip = buf[k-1] != '\n';
-			continue;
-		}
-		if (buf[k-1] != '\n') {
-			rv = ERANGE;
-			break;
-		}
+    while (fgets(buf, size, fd) && (k = strlen(buf)) > 0) {
+        if (skip || strncmp(name, buf, l) || buf[l] != ':') {
+            skip = buf[k - 1] != '\n';
+            continue;
+        }
+        if (buf[k - 1] != '\n') {
+            rv = ERANGE;
+            break;
+        }
 
-		if (__parsespent(buf, sp) < 0) continue;
-		*res = sp;
-		break;
-	}
-	errno = rv ? rv : orig_errno;
-	return rv;
+        if (__parsespent(buf, sp) < 0) continue;
+        *res = sp;
+        break;
+    }
+    errno = rv ? rv : orig_errno;
+    return rv;
 }
-
-#define LINE_LIM 256
 
 struct spwd *getspnam(const char *name)
 {
-	static struct spwd sp;
-	static char *line;
-	struct spwd *res;
-	int e;
-	int orig_errno = errno;
+    static struct spwd sp;
+    static char *line;
+    struct spwd *res;
+    int e;
+    int orig_errno = errno;
 
-	if (!line) line = malloc(LINE_LIM);
-	if (!line) return 0;
-	e = getspnam_r(name, &sp, line, LINE_LIM, &res);
-	errno = e ? e : orig_errno;
-	return res;
+    if (!line) line = malloc(LINE_LIM);
+    if (!line) return 0;
+    e     = getspnam_r(name, &sp, line, LINE_LIM, &res);
+    errno = e ? e : orig_errno;
+    return res;
 }

@@ -132,7 +132,7 @@ static inline int __get_link_content(const char *path, char *buffer, size_t bufl
 
 /// @brief Resolve the path by following all symbolic links.
 /// @param path the path to resolve.
-/// @param buffer the buffer where the resolved path is stored.
+/// @param abspath the buffer where the resolved path is stored.
 /// @param buflen the size of the provided resolved_path buffer.
 /// @param flags the flags controlling how the path is resolved.
 /// @param link_depth the current link depth.

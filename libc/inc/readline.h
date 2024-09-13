@@ -9,6 +9,9 @@
 /// @param fd the file descriptor.
 /// @param buffer the buffer where we place the line.
 /// @param buflen the length of the buffer.
-/// @param readlen the amount we read, if negative, we did not encounter a newline.
-/// @return 0 if we are done reading, 1 if we encountered a newline, -1 if otherwise.
+/// @param read_len pointer to a variable where the length of the read line will
+/// be stored. If NULL, the length will not be stored.
+/// @return  1 if a newline character ('\n') was found,
+///         -1 if the line was terminated by EOF or null character without finding a newline,
+///          0 if no data was read (indicating end of file or error).
 int readline(int fd, char *buffer, size_t buflen, ssize_t *read_len);

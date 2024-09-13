@@ -4,7 +4,8 @@
 /// See LICENSE.md for details.
 
 #pragma once
-#define __SYS_STAT_H
+
+#define __SYS_STAT_H ///< Marks the fact that we included "sys/stat.h".
 
 #include "bits/stat.h"
 #include "stddef.h"
@@ -26,14 +27,14 @@
 /// @defgroup FileTypeTest File Type Test Macros
 /// @brief These macros allows to easily identify file types.
 /// @{
-#define S_ISTYPE(mode, mask) (((mode) & S_IFMT) == (mask))
-#define S_ISSOCK(mode)       (S_ISTYPE(mode, S_IFSOCK)) ///< Check if a socket.
-#define S_ISLNK(mode)        (S_ISTYPE(mode, S_IFLNK))  ///< Check if a symbolic link.
-#define S_ISREG(mode)        (S_ISTYPE(mode, S_IFREG))  ///< Check if a regular file.
-#define S_ISBLK(mode)        (S_ISTYPE(mode, S_IFBLK))  ///< Check if a block special.
-#define S_ISDIR(mode)        (S_ISTYPE(mode, S_IFDIR))  ///< Check if a directory.
-#define S_ISCHR(mode)        (S_ISTYPE(mode, S_IFCHR))  ///< Check if a char special.
-#define S_ISFIFO(mode)       (S_ISTYPE(mode, S_IFIFO))  ///< Check if a fifo.
+#define S_ISTYPE(mode, mask) (((mode) & S_IFMT) == (mask)) ///< Checks for a specific mask.
+#define S_ISSOCK(mode)       (S_ISTYPE(mode, S_IFSOCK))    ///< Checks if a socket.
+#define S_ISLNK(mode)        (S_ISTYPE(mode, S_IFLNK))     ///< Checks if a symbolic link.
+#define S_ISREG(mode)        (S_ISTYPE(mode, S_IFREG))     ///< Checks if a regular file.
+#define S_ISBLK(mode)        (S_ISTYPE(mode, S_IFBLK))     ///< Checks if a block special.
+#define S_ISDIR(mode)        (S_ISTYPE(mode, S_IFDIR))     ///< Checks if a directory.
+#define S_ISCHR(mode)        (S_ISTYPE(mode, S_IFCHR))     ///< Checks if a char special.
+#define S_ISFIFO(mode)       (S_ISTYPE(mode, S_IFIFO))     ///< Checks if a fifo.
 /// @}
 
 /// @defgroup ModeBitsAccessPermission Mode Bits for Access Permission

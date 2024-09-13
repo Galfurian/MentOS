@@ -32,8 +32,17 @@ int vfs_register_filesystem(file_system_type *fs);
 /// @return The outcome of the operation, 0 if fails.
 int vfs_unregister_filesystem(file_system_type *fs);
 
+/// @brief Registers a given superblock.
+/// @param name the name of the superblock (e.g., null).
+/// @param path the path of the superblock (e.g., /dev/null).
+/// @param type the superblock's filesystem type.
+/// @param root the VFS file that we use as root for the superblock.
+/// @return 1 on success, 0 on failure.
 int vfs_register_superblock(const char *name, const char *path, file_system_type *type, vfs_file_t *root);
 
+/// @brief Unregisters the given superblock.
+/// @param sb the superblock to unregister.
+/// @return 1 on success, 0 on failure.
 int vfs_unregister_superblock(super_block_t *sb);
 
 /// @brief Searches for the mountpoint of the given path.

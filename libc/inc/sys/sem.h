@@ -15,7 +15,6 @@
 /// @defgroup SemaphoreCommands semctl commands
 /// @brief List of commands for semctl function.
 /// @{
-
 #define GETPID   11 ///< Get sempid.
 #define GETVAL   12 ///< Get semval.
 #define GETALL   13 ///< Get all semval's.
@@ -25,10 +24,9 @@
 #define SETALL   17 ///< Set all semval's.
 #define SEM_STAT 18 ///< Return a semid_ds structure.
 #define SEM_INFO 19 ///< Return a seminfo structure.
+/// @}
 
-/// }@
-
-#define SEM_SET_MAX 256
+#define SEM_SET_MAX 256 ///< The maximum number of semaphores in a set.
 
 /// @brief Optional argument for semctl() function
 union semun {
