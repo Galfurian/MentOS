@@ -1192,7 +1192,7 @@ static file_system_type ata_file_system_type = {
 };
 
 /// Filesystem general operations.
-static vfs_sys_operations_t ata_sys_operations = {
+static const vfs_sys_operations_t ata_sys_operations = {
     .mkdir_f   = NULL,
     .rmdir_f   = NULL,
     .stat_f    = ata_stat,
@@ -1201,7 +1201,7 @@ static vfs_sys_operations_t ata_sys_operations = {
 };
 
 /// ATA filesystem file operations.
-static vfs_file_operations_t ata_fs_operations = {
+static const vfs_file_operations_t ata_fs_operations = {
     .open_f     = ata_open,
     .unlink_f   = NULL,
     .close_f    = ata_close,

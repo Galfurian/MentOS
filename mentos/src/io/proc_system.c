@@ -76,7 +76,7 @@ static ssize_t __procs_read(vfs_file_t *file, char *buf, off_t offset, size_t nb
 }
 
 /// Filesystem general operations.
-static vfs_sys_operations_t procs_sys_operations = {
+static const vfs_sys_operations_t procs_sys_operations = {
     .mkdir_f   = NULL,
     .rmdir_f   = NULL,
     .stat_f    = NULL,
@@ -85,7 +85,7 @@ static vfs_sys_operations_t procs_sys_operations = {
 };
 
 /// Filesystem file operations.
-static vfs_file_operations_t procs_fs_operations = {
+static const vfs_file_operations_t procs_fs_operations = {
     .open_f     = NULL,
     .unlink_f   = NULL,
     .close_f    = NULL,

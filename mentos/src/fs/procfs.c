@@ -98,7 +98,7 @@ static ssize_t procfs_getdents(vfs_file_t *file, dirent_t *dirp, off_t doff, siz
 // ============================================================================
 
 /// Filesystem general operations.
-static vfs_sys_operations_t procfs_sys_operations = {
+static const vfs_sys_operations_t procfs_sys_operations = {
     .mkdir_f   = procfs_mkdir,
     .rmdir_f   = procfs_rmdir,
     .stat_f    = procfs_stat,
@@ -107,7 +107,7 @@ static vfs_sys_operations_t procfs_sys_operations = {
 };
 
 /// Filesystem file operations.
-static vfs_file_operations_t procfs_fs_operations = {
+static const vfs_file_operations_t procfs_fs_operations = {
     .open_f     = procfs_open,
     .unlink_f   = procfs_unlink,
     .close_f    = procfs_close,

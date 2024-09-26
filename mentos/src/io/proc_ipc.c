@@ -19,7 +19,7 @@ extern ssize_t procipc_sem_read(vfs_file_t *file, char *buf, off_t offset, size_
 extern ssize_t procipc_shm_read(vfs_file_t *file, char *buf, off_t offset, size_t nbyte);
 
 /// Filesystem general operations.
-static vfs_sys_operations_t procipc_sys_operations = {
+static const vfs_sys_operations_t procipc_sys_operations = {
     .mkdir_f   = NULL,
     .rmdir_f   = NULL,
     .stat_f    = NULL,
@@ -28,7 +28,7 @@ static vfs_sys_operations_t procipc_sys_operations = {
 };
 
 /// Filesystem file operations for message queues.
-static vfs_file_operations_t procipc_msg_fs_operations = {
+static const vfs_file_operations_t procipc_msg_fs_operations = {
     .open_f     = NULL,
     .unlink_f   = NULL,
     .close_f    = NULL,
@@ -42,7 +42,7 @@ static vfs_file_operations_t procipc_msg_fs_operations = {
 };
 
 /// Filesystem file operations for semaphores.
-static vfs_file_operations_t procipc_sem_fs_operations = {
+static const vfs_file_operations_t procipc_sem_fs_operations = {
     .open_f     = NULL,
     .unlink_f   = NULL,
     .close_f    = NULL,
@@ -56,7 +56,7 @@ static vfs_file_operations_t procipc_sem_fs_operations = {
 };
 
 /// Filesystem file operations for shared memry.
-static vfs_file_operations_t procipc_shm_fs_operations = {
+static const vfs_file_operations_t procipc_shm_fs_operations = {
     .open_f     = NULL,
     .unlink_f   = NULL,
     .close_f    = NULL,

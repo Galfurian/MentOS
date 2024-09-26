@@ -211,7 +211,7 @@ static int procv_ioctl(vfs_file_t *file, int request, void *data)
 }
 
 /// Filesystem general operations.
-static vfs_sys_operations_t procv_sys_operations = {
+static const vfs_sys_operations_t procv_sys_operations = {
     .mkdir_f   = NULL,
     .rmdir_f   = NULL,
     .stat_f    = NULL,
@@ -220,7 +220,7 @@ static vfs_sys_operations_t procv_sys_operations = {
 };
 
 /// Filesystem file operations.
-static vfs_file_operations_t procv_fs_operations = {
+static const vfs_file_operations_t procv_fs_operations = {
     .open_f     = NULL,
     .unlink_f   = NULL,
     .close_f    = NULL,

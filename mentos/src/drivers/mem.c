@@ -50,7 +50,7 @@ static vfs_file_t *find_device_file(const char *path)
 
 static int mem_stat(const char *path, stat_t *stat);
 
-static vfs_sys_operations_t mem_sys_operations = {
+static const vfs_sys_operations_t mem_sys_operations = {
     .mkdir_f = NULL,
     .rmdir_f = NULL,
     .stat_f  = mem_stat,
@@ -80,7 +80,7 @@ static file_system_type null_file_system_type = {
     .mount    = null_mount_callback
 };
 
-static vfs_file_operations_t null_fs_operations = {
+static const vfs_file_operations_t null_fs_operations = {
     .open_f     = null_open,
     .unlink_f   = NULL,
     .close_f    = null_close,

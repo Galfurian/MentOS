@@ -21,6 +21,9 @@
 #include "string.h"
 #include "sys/errno.h"
 #include "sys/list_head.h"
+#include "fs/vfs.h"
+#include "sys/stat.h"
+#include "fcntl.h"
 
 /// @brief This constant specifies the size of the buffer allocated for each
 /// pipe, and its value can affect the performance and capacity of pipes.
@@ -254,6 +257,40 @@ static int pipe_buffer_get(pipe_inode_info_t *pipe_info, pipe_buffer_t *buf)
 // ============================================================================
 // Virtual FileSystem (VFS) Functions
 // ============================================================================
+
+/// @brief Creates a VFS file.
+/// @param procfs_file the PROCFS file.
+/// @return a pointer to the newly create VFS file, NULL on failure.
+static inline vfs_file_t *pipe_create_file_struct(void)
+{
+    vfs_file_t *vfs_file = kmem_cache_alloc(vfs_file_cache, GFP_KERNEL);
+    if (!vfs_file) {
+        pr_err("Failed to allocate memory for VFS file!\n");
+        return NULL;
+    }
+    memset(vfs_file, 0, sizeof(vfs_file_t));
+    // vfs_file->name;
+    // vfs_file->device;
+    vfs_file->mask = S_IRUSR | S_IRGRP | S_IROTH;
+    // vfs_file->uid;
+    // vfs_file->gid;
+    // vfs_file->flags;
+    // vfs_file->ino;
+    // vfs_file->length;
+    // vfs_file->impl;
+    // vfs_file->open_flags;
+    // vfs_file->count;
+    // vfs_file->atime;
+    // vfs_file->mtime;
+    // vfs_file->ctime;
+    vfs_file->sys_operations = &pipe_sys_operations;
+    vfs_file->fs_operations  = &pipe_fs_operations;
+    // vfs_file->f_pos;
+    // vfs_file->nlink;
+    list_head_init(&vfs_file->siblings);
+    // vfs_file->refcount;
+    return vfs_file;
+}
 
 static vfs_file_t *pipe_open(const char *path, int flags, mode_t mode)
 {

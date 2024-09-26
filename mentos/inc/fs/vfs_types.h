@@ -139,9 +139,9 @@ struct vfs_file_t {
     /// Created (time).
     uint32_t ctime;
     /// Generic system operations.
-    vfs_sys_operations_t *sys_operations;
+    const vfs_sys_operations_t *sys_operations;
     /// Files operations.
-    vfs_file_operations_t *fs_operations;
+    const vfs_file_operations_t *fs_operations;
     /// Offset for read operations.
     size_t f_pos;
     /// The number of links.

@@ -387,7 +387,7 @@ static uint32_t ext2_get_real_block_index(ext2_filesystem_t *fs, ext2_inode_t *i
 // ============================================================================
 
 /// Filesystem general operations.
-static vfs_sys_operations_t ext2_sys_operations = {
+static const vfs_sys_operations_t ext2_sys_operations = {
     .mkdir_f   = ext2_mkdir,
     .rmdir_f   = ext2_rmdir,
     .stat_f    = ext2_stat,
@@ -397,7 +397,7 @@ static vfs_sys_operations_t ext2_sys_operations = {
 };
 
 /// Filesystem file operations.
-static vfs_file_operations_t ext2_fs_operations = {
+static const vfs_file_operations_t ext2_fs_operations = {
     .open_f     = ext2_open,
     .unlink_f   = ext2_unlink,
     .close_f    = ext2_close,

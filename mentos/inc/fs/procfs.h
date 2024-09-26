@@ -10,9 +10,9 @@
 /// @brief Stores information about a procfs directory entry.
 typedef struct proc_dir_entry_t {
     /// Generic system operations.
-    vfs_sys_operations_t *sys_operations;
+    const vfs_sys_operations_t *sys_operations;
     /// Files operations.
-    vfs_file_operations_t *fs_operations;
+    const vfs_file_operations_t *fs_operations;
     /// Data associated with the dir_entry.
     void *data;
     /// Name of the entry.

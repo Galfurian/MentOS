@@ -408,7 +408,7 @@ static inline ssize_t __procr_read(vfs_file_t *file, char *buffer, off_t offset,
 }
 
 /// Filesystem general operations.
-static vfs_sys_operations_t procr_sys_operations = {
+static const vfs_sys_operations_t procr_sys_operations = {
     .mkdir_f   = NULL,
     .rmdir_f   = NULL,
     .stat_f    = NULL,
@@ -417,7 +417,7 @@ static vfs_sys_operations_t procr_sys_operations = {
 };
 
 /// Filesystem file operations.
-static vfs_file_operations_t procr_fs_operations = {
+static const vfs_file_operations_t procr_fs_operations = {
     .open_f     = NULL,
     .unlink_f   = NULL,
     .close_f    = NULL,
