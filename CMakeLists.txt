@@ -76,22 +76,22 @@ endif()
 # ASSEMBLY COMPILER
 # =============================================================================
 
-# Find the NASM compiler.
-find_program(ASM_COMPILER NAMES nasm HINTS /usr/bin/ /usr/local/bin/)
-# Mark the variable ASM_COMPILER as advanced.
-mark_as_advanced(ASM_COMPILER)
-# Check that we have found the compiler.
-if(NOT ASM_COMPILER)
-    message(FATAL_ERROR "ASM compiler not found!")
-endif(NOT ASM_COMPILER)
-# Set the asm compiler.
-set(CMAKE_ASM_COMPILER ${ASM_COMPILER})
+# Set the ASM compiler to GCC explicitly.
+set(CMAKE_ASM_COMPILER ${CMAKE_C_COMPILER})
+
 # Set the assembly compiler flags.
+# Adjust for debug and release builds.
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-    set(CMAKE_ASM_COMPILE_OBJECT "<CMAKE_ASM_COMPILER> -f elf -g -O0 -F dwarf -o <OBJECT> <SOURCE>")
+    set(CMAKE_ASM_FLAGS "-m32 -g")
 else()
-    set(CMAKE_ASM_COMPILE_OBJECT "<CMAKE_ASM_COMPILER> -f elf -g -O3 -o <OBJECT> <SOURCE>")
+    set(CMAKE_ASM_FLAGS "-m32 -O3")
 endif()
+
+# Ensure assembly files are compiled properly.
+set(CMAKE_ASM_COMPILE_OBJECT "${CMAKE_ASM_COMPILER} ${CMAKE_ASM_FLAGS} -c -o <OBJECT> <SOURCE>")
+
+# Enable assembly language in the project.
+enable_language(ASM)
 
 # =============================================================================
 # GLOBAL COMPILATION FLAGS
@@ -135,8 +135,6 @@ elseif(CMAKE_BUILD_TYPE STREQUAL "Release")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O3")
 endif(CMAKE_BUILD_TYPE STREQUAL "Debug")
 
-# Set the assembly compiler flags.
-set(CMAKE_ASM_FLAGS "${CMAKE_ASM_FLAGS} -m32")
 
 # =============================================================================
 # SUB-DIRECTORIES SETUP

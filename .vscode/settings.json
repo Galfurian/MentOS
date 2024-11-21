@@ -1,0 +1,19 @@
+{
+    "files.associations": {
+        "array": "c",
+        "string_view": "c",
+        "initializer_list": "c",
+        "utility": "c",
+        "typeinfo": "c",
+        "compare": "c",
+        "functional": "c",
+        "tuple": "c",
+        "type_traits": "c",
+        "unistd.h": "c",
+        "assert.h": "c",
+        "kernel.h": "c",
+        "paging.h": "c",
+        "zone_allocator.h": "c",
+        "buddysystem.h": "c"
+    }
+}

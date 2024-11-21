@@ -49,19 +49,41 @@ static inline void __outportb(uint16_t port, uint8_t data)
     __asm__ __volatile__("outb %%al, %%dx" ::"a"(data), "d"(port));
 }
 
-/// @brief Writes the given character on the debug port.
-/// @param c the character to send to the debug port.
+/// @brief Reads a byte from the given port.
+/// @param port The input port.
+/// @return The byte read from the port.
+static inline uint8_t __inportb(uint16_t port)
+{
+    uint8_t result;
+    __asm__ __volatile__("inb %%dx, %%al" : "=a"(result) : "d"(port));
+    return result;
+}
+
+/// @brief Waits until the serial port is ready to transmit.
+/// @param port The base port of the serial device.
+static inline void __serial_wait(uint16_t port)
+{
+    while ((__inportb(port + 5) & 0x20) == 0); // Wait until Transmitter Holding Register is empty
+}
+
+/// @brief Writes the given character to the debug port.
+/// @param c The character to send to the debug port.
 static inline void __debug_putchar(char c)
 {
+    __serial_wait(SERIAL_COM1);
+    if (c == '\n') {
+        __outportb(SERIAL_COM1, '\r');
+        __serial_wait(SERIAL_COM1);
+    }
     __outportb(SERIAL_COM1, c);
 }
 
-/// @brief Writes the given string on the debug port.
-/// @param s the string to send to the debug port.
-static inline void __debug_puts(char *s)
+/// @brief Writes the given string to the debug port.
+/// @param s The string to send to the debug port.
+static inline void __debug_puts(const char *s)
 {
     while ((*s) != 0) {
-        __outportb(SERIAL_COM1, *s++);
+        __debug_putchar(*s++);
     }
 }
 
@@ -210,12 +232,27 @@ static inline void __relocate_kernel_image(elf_header_t *elf_hdr)
     }
 }
 
+/// @brief Initializes the serial port.
+/// Configures baud rate, parity, and stop bits for proper transmission.
+static inline void __serial_init(uint16_t port)
+{
+    __outportb(port + 1, 0x00); // Disable all interrupts
+    __outportb(port + 3, 0x80); // Enable DLAB (set baud rate divisor)
+    __outportb(port + 0, 0x03); // Set divisor to 3 (low byte, 38400 baud)
+    __outportb(port + 1, 0x00); //                  (high byte)
+    __outportb(port + 3, 0x03); // 8 bits, no parity, one stop bit
+    __outportb(port + 2, 0xC7); // Enable FIFO, clear them, with 14-byte threshold
+    __outportb(port + 4, 0x0B); // IRQs enabled, RTS/DSR set
+}
+
 /// @brief Entry point of the bootloader.
 /// @param magic  The magic number coming from the multiboot assembly code.
 /// @param header Multiboot header provided by the bootloader.
 /// @param esp    The initial stack pointer.
 void boot_main(uint32_t magic, multiboot_info_t *header, uint32_t esp)
 {
+    __serial_init(SERIAL_COM1);
+
     __debug_puts("\n[bootloader] Start...\n");
     elf_header_t *elf_hdr = (elf_header_t *)LDVAR(kernel_bin);
 

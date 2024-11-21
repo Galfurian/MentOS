@@ -46,35 +46,6 @@ char *module_start[MAX_MODULES];
 /// Describe end address of grub multiboot modules.
 char *module_end[MAX_MODULES];
 
-// Everything is defined in kernel.ld.
-
-/// Points at the multiheader grub info, starting address.
-extern uint32_t _multiboot_header_start;
-/// Points at the multiheader grub info, ending address.
-extern uint32_t _multiboot_header_end;
-/// Points at the kernel code, starting address.
-extern uint32_t _text_start;
-/// Points at the kernel code, ending address.
-extern uint32_t _text_end;
-/// Points at the read-only kernel data, starting address.
-extern uint32_t _rodata_start;
-/// Points at the read-only kernel data, ending address.
-extern uint32_t _rodata_end;
-/// Points at the read-write kernel data initialized, starting address.
-extern uint32_t _data_start;
-/// Points at the read-write kernel data initialized, ending address.
-extern uint32_t _data_end;
-/// Points at the read-write kernel data uninitialized an kernel stack, starting address.
-extern uint32_t _bss_start;
-/// Points at the read-write kernel data uninitialized an kernel stack, ending address.
-extern uint32_t _bss_end;
-/// Points at the top of the kernel stack.
-extern uint32_t stack_top;
-/// Points at the bottom of the kernel stack.
-extern uint32_t stack_bottom;
-/// Points at the end of kernel code/data.
-extern uint32_t end;
-
 /// Initial ESP.
 uintptr_t initial_esp = 0;
 /// The boot info.
@@ -123,7 +94,7 @@ int kmain(boot_info_t *boot_informations)
 
     //==========================================================================
     pr_notice("Initialize the video...\n");
-    vga_initialize();
+    // vga_initialize();
     video_init();
 
     //==========================================================================
@@ -454,7 +425,7 @@ int kmain(boot_info_t *boot_informations)
     print_ok();
 
     // We have completed the booting procedure.
-    pr_notice("Booting done, jumping into init process.\n");
+    pr_notice("Booting done, jumping into init process (0x%p).\n", init_p->thread.regs.eip);
     // Switch to the page directory of init.
     paging_switch_directory_va(init_p->mm->pgd);
     // Jump into init process.

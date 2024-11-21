@@ -1,38 +1,38 @@
-;                MentOS, The Mentoring Operating system project
-; @file   exception.asm
-; @brief
-; @copyright (c) 2014-2021 This file is distributed under the MIT License.
-; See LICENSE.md for details.
+#                MentOS, The Mentoring Operating system project
+# @file   exception.s
+# @brief
+# @copyright (c) 2014-2021 This file is distributed under the MIT License.
+# See LICENSE.md for details.
 
-extern isr_handler
+.extern isr_handler
 
-; Macro used to define a ISR which does not push an error code.
-%macro ISR_NOERR 1
-    global INT_%1
-    INT_%1:
-        cli
-        ; A normal ISR stub that pops a dummy error code to keep a
-        ; uniform stack frame
-        push 0
-        push %1
-        jmp isr_common
-%endmacro
+# Macro used to define an ISR which does not push an error code.
+.macro ISR_NOERR num
+.global INT_\num
+INT_\num:
+    cli
+    # A normal ISR stub that pops a dummy error code to keep a
+    # uniform stack frame
+    pushl $0
+    pushl $\num
+    jmp isr_common
+.endm
 
-; Macro used to define a ISR which pushes an error code.
-%macro ISR_ERR 1
-    global INT_%1
-    INT_%1:
-        cli
-        push %1
-        jmp isr_common
-%endmacro
+# Macro used to define an ISR which pushes an error code.
+.macro ISR_ERR num
+.global INT_\num
+INT_\num:
+    cli
+    pushl $\num
+    jmp isr_common
+.endm
 
-; -----------------------------------------------------------------------------
-; SECTION (text)
-; -----------------------------------------------------------------------------
-section .text
+# -----------------------------------------------------------------------------
+# SECTION (text)
+# -----------------------------------------------------------------------------
+.section .text
 
-; Standard X86 interrupt service routines
+# Standard x86 interrupt service routines
 ISR_NOERR 0
 ISR_NOERR 1
 ISR_NOERR 2
@@ -69,48 +69,40 @@ ISR_NOERR 31
 ISR_NOERR 80
 
 isr_common:
-    ; Save all registers (eax, ecx, edx, ebx, esp, ebp, esi, edi)
+    # Save all registers (eax, ecx, edx, ebx, esp, ebp, esi, edi)
     pusha
 
-    ; Save segment registers
-    push ds
-    push es
-    push fs
-    push gs
+    # Save segment registers
+    pushl %ds
+    pushl %es
+    pushl %fs
+    pushl %gs
 
-    mov ax, 0x10
-    mov ds, ax
-    mov es, ax
-    mov fs, ax
-    mov gs, ax
-    ; CLD - Azzera la flag di Direzione
-    ; Questa istruzione forza semplicemente a zero la flag di Direzione.
-    ; Quando la flag di direzione vale 0 tutte le istruzioni per la
-    ;  manipolazione delle stringhe agiscono in avanti, cioè dagli indirizzi più
-    ;  bassi a quelli più alti.
-    ; L'istruzione agisce dunque sui puntatori SI e DI producendo su essi un
-    ;  autoincremento proporzionale alla dimensione degli operandi trattati.
-    ; Le sue caratteristiche sono riassunte nella seguente tabella (leggi le
-    ;  istruzioni  Legenda della Tabella):
+    movw $0x10, %ax
+    movw %ax, %ds
+    movw %ax, %es
+    movw %ax, %fs
+    movw %ax, %gs
+
+    # CLD - Clear Direction Flag
     cld
 
-    ; Call the interrupt handler.
-    push    esp
-    call    isr_handler
-    add     esp, 0x4
+    # Call the interrupt handler.
+    pushl %esp
+    call isr_handler
+    addl $0x4, %esp
 
-    ; Restore segment registers.
-    pop gs
-    pop fs
-    pop es
-    pop ds
+    # Restore segment registers.
+    popl %gs
+    popl %fs
+    popl %es
+    popl %ds
 
-    ; Restore all registers  (eax, ecx, edx, ebx, esp, ebp, esi, edi).
+    # Restore all registers (eax, ecx, edx, ebx, esp, ebp, esi, edi).
     popa
 
-    ; Cleanup error code and IRQ #
-    add esp, 0x8
+    # Cleanup error code and IRQ #
+    addl $0x8, %esp
 
-
-    iret                        ; pops 5 things at once:
-                                ;   CS, EIP, EFLAGS, SS, and ESP
+    iret                        # Pops 5 things at once:
+                                #   CS, EIP, EFLAGS, SS, and ESP

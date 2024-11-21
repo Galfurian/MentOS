@@ -1,28 +1,29 @@
-;                MentOS, The Mentoring Operating system project
-; @file   interrupt.asm
-; @brief
-; @copyright (c) 2014-2021 This file is distributed under the MIT License.
-; See LICENSE.md for details.
+#                MentOS, The Mentoring Operating system project
+# @file   interrupt.s
+# @brief
+# @copyright (c) 2014-2021 This file is distributed under the MIT License.
+# See LICENSE.md for details.
 
-extern irq_handler
+.extern irq_handler
 
-%macro IRQ 2
-    global IRQ_%1
-    IRQ_%1:
-        cli               ; disable interrupt line
-        ; A normal ISR stub that pops a dummy error code to keep a
-        ; uniform stack frame
-        push 0
-        push %2           ; irq number
-        jmp irq_common
-%endmacro
+# Define a macro to create IRQ handlers.
+.macro IRQ irq_num, irq_vector
+.global IRQ_\irq_num
+IRQ_\irq_num:
+    cli                       # Disable interrupt line
+    # A normal ISR stub that pops a dummy error code to keep a
+    # uniform stack frame
+    pushl $0                  # Push dummy error code
+    pushl $\irq_vector        # Push IRQ number
+    jmp irq_common            # Jump to common IRQ handler
+.endm
 
-; -----------------------------------------------------------------------------
-; SECTION (text)
-; -----------------------------------------------------------------------------
-section .text
+# -----------------------------------------------------------------------------
+# SECTION (text)
+# -----------------------------------------------------------------------------
+.section .text
 
-; 32 is the first irq, 47 is the last one. DO NOT CHANGE THESE NUMBERS. 
+# 32 is the first IRQ, 47 is the last one. DO NOT CHANGE THESE NUMBERS.
 IRQ 0, 32
 IRQ 1, 33
 IRQ 2, 34
@@ -41,51 +42,51 @@ IRQ 14, 46
 IRQ 15, 47
 
 irq_common:
-    ;==== Save CPU registers ===================================================
-    ; when an irq occurs, the following registers are already pushed on stack:
-    ; eip, cs, eflags, useresp, ss
+    #==== Save CPU registers ===================================================
+    # When an IRQ occurs, the following registers are already pushed on stack:
+    # EIP, CS, EFLAGS, USERESP, SS
 
-    ; Save registers: eax, ecx, edx, ebx, esp, ebp, esi, edi
+    # Save general-purpose registers
     pusha
 
-    ; Save segment registers
-    push ds
-    push es
-    push fs
-    push gs
-    ;---------------------------------------------------------------------------
+    # Save segment registers
+    pushl %ds
+    pushl %es
+    pushl %fs
+    pushl %gs
+    #----------------------------------------------------------------------------
 
-    ;==== ensure we are using kernel data segment ==============================
-    mov ax, 0x10
-    mov ds, ax
-    mov es, ax
-    mov fs, ax
-    mov gs, ax
+    #==== Ensure we are using kernel data segment ===============================
+    movw $0x10, %ax
+    movw %ax, %ds
+    movw %ax, %es
+    movw %ax, %fs
+    movw %ax, %gs
     cld
-    ;---------------------------------------------------------------------------
+    #----------------------------------------------------------------------------
 
-    ;==== Call the interrupt handler ===========================================
-    ; The argument passed is a pointer to an Interrupt_State struct,
-    ; which describes the stack layout for all interrupts.
-    push    esp
-    call    irq_handler
-    add     esp, $4          ; remove esp from stack
-    ;---------------------------------------------------------------------------
+    #==== Call the interrupt handler ============================================
+    # The argument passed is a pointer to an Interrupt_State struct,
+    # which describes the stack layout for all interrupts.
+    pushl %esp
+    call irq_handler
+    addl $4, %esp              # Remove ESP from stack
+    #----------------------------------------------------------------------------
 
-    ;==== Restore registers ====================================================
-    ; restore segment registers
-    pop gs
-    pop fs
-    pop es
-    pop ds
+    #==== Restore registers =====================================================
+    # Restore segment registers
+    popl %gs
+    popl %fs
+    popl %es
+    popl %ds
 
-    ; restore registers: eax, ecx, edx, ebx, esp, ebp, esi, edi
+    # Restore general-purpose registers
     popa
-    ;---------------------------------------------------------------------------
+    #----------------------------------------------------------------------------
 
-    ; Cleanup error code and IRQ #
-    add esp, $8
+    # Cleanup error code and IRQ #
+    addl $8, %esp
 
-    ; return to process
-    iret                        ; pops 5 things at once:
-                                ;   CS, EIP, EFLAGS, SS, and ESP
+    # Return to process
+    iret                        # Pops 5 things at once:
+                                #   CS, EIP, EFLAGS, SS, and ESP

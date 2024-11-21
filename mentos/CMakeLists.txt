@@ -105,7 +105,7 @@ set(KERNEL_SOURCES
     ${CMAKE_SOURCE_DIR}/mentos/src/process/scheduler.c
     ${CMAKE_SOURCE_DIR}/mentos/src/process/process.c
     ${CMAKE_SOURCE_DIR}/mentos/src/process/wait.c
-    ${CMAKE_SOURCE_DIR}/mentos/src/process/user.S
+    ${CMAKE_SOURCE_DIR}/mentos/src/process/user.s
     ${CMAKE_SOURCE_DIR}/mentos/src/sys/utsname.c
     ${CMAKE_SOURCE_DIR}/mentos/src/sys/module.c
     ${CMAKE_SOURCE_DIR}/mentos/src/system/errno.c
@@ -217,7 +217,7 @@ endif()
 add_library(
     ${BOOTLOADER_NAME}
     src/boot.c
-    src/boot.S
+    src/boot.s
 )
 # Add the includes.
 target_include_directories(

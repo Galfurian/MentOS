@@ -1,0 +1,11 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Compile and Run in Debug",
+      "type": "shell",
+      "command":"cmake --build ${workspaceRoot}/build --target all filesystem qemu-gdb",
+      "isBackground": true
+    }
+  ]
+}

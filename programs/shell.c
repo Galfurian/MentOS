@@ -1138,9 +1138,7 @@ static inline void __free_argv(int argc, char **argv)
     }
     // Free each argument in the argv array.
     for (int i = 0; i < argc; ++i) {
-        if (argv[i] != NULL) {
-            free(argv[i]);
-        }
+        free(argv[i]);
     }
     // Free the argv array itself.
     free(argv);
@@ -1338,7 +1336,7 @@ static void __interactive_mode(void)
     if (stat(".shellrc", &buf) == 0) {
         int ret = __execute_file(".shellrc");
         if (ret < 0) {
-            printf("%s: .shellrc: %s\n", strerror(-ret));
+            printf(".shellrc: %s\n", strerror(-ret));
         }
     }
 #pragma clang diagnostic push
@@ -1406,7 +1404,7 @@ int main(int argc, char *argv[])
     memset(&action, 0, sizeof(action));
     action.sa_handler = wait_for_child;
     if (sigaction(SIGCHLD, &action, NULL) == -1) {
-        printf("Failed to set signal handler (%s).\n", SIGCHLD, strerror(errno));
+        printf("Failed to set signal handler (%s).\n", strerror(errno));
         return 1;
     }
 
