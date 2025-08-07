@@ -28,7 +28,7 @@
 /// @param stack    The stack to use.
 extern void enter_userspace(uintptr_t location, uintptr_t stack);
 
-extern void context_switch(struct context *old, struct context *new);
+extern void context_switch(task_kernel_context_t *old, task_kernel_context_t *new);
 
 /// The list of processes.
 runqueue_t runqueue;
@@ -173,6 +173,58 @@ void scheduler_run(pt_regs_t *f)
         }
     }
     //==========================================================================
+}
+
+void full_dump_task_information(const char *name, task_kernel_context_t *ctx)
+{
+    pr_notice("Task (%s) context (CTX: %p):\n", name, ctx);
+    pr_notice(" EAX: 0x%08x, EBX: 0x%08x, ECX: 0x%08x, EDX: 0x%08x\n", ctx->eax, ctx->ebx, ctx->ecx, ctx->edx);
+    pr_notice(" ESI: 0x%08x, EDI: 0x%08x, EIP: 0x%08x\n", ctx->esi, ctx->edi, ctx->eip);
+    pr_notice(" EBP: 0x%08x, ESP: 0x%08x\n", ctx->ebp, ctx->esp);
+    for (unsigned i = 0; i < 10; ++i) {
+        uintptr_t address = (uintptr_t)(ctx->esp) + (i * sizeof(uintptr_t));
+        uintptr_t value   = *(uintptr_t *)address;
+        pr_notice("  [%2d] 0x%08x: 0x%08x\n", i, address, value);
+    }
+}
+
+void scheduler_yield(void)
+{
+    // Check if there is a running process.
+    if (runqueue.curr == NULL) {
+        return;
+    }
+
+    pr_notice("Yielding process %d...\n", runqueue.curr->pid);
+
+    task_struct *next = NULL;
+
+    if (runqueue.curr->state == EXIT_ZOMBIE) {
+        //==== Handle Zombies =================================================
+        //pr_debug("Handle zombie %d\n", runqueue.curr->pid);
+        // get the next process after the current one
+        list_head_t *nNode = runqueue.curr->run_list.next;
+        // check if we reached the head of list_head_t
+        if (nNode == &runqueue.queue) {
+            nNode = nNode->next;
+        }
+        // get the task_struct
+        next = list_entry(nNode, task_struct, run_list);
+        // Remove the zombie task.
+        scheduler_dequeue_task(runqueue.curr);
+        assert(next && "No valid task selected after removing ZOMBIE.");
+        //=====================================================================
+    } else {
+        // Pointer to the next process to be executed.
+        next = scheduler_pick_next_task(&runqueue);
+        //=====================================================================
+    }
+    // Check if the next and current processes are different.
+    if (next != runqueue.curr) {
+        full_dump_task_information(runqueue.curr->name, &runqueue.curr->ctx);
+        full_dump_task_information(next->name, &next->ctx);
+        context_switch(&runqueue.curr->ctx, &next->ctx);
+    }
 }
 
 void scheduler_store_context(pt_regs_t *f, task_struct *process)

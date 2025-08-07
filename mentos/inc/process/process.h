@@ -15,13 +15,23 @@
 /// The maximum length of a name for a task_struct.
 #define TASK_NAME_MAX_LENGTH 100
 
-/// The default dimension of the stack of a process (1 MByte).
-#define DEFAULT_STACK_SIZE (1 * M)
+/// The default dimension of the user stack (256 KBytes).
+#define DEFAULT_USER_STACK_SIZE   (256 * K)
+/// The default dimension of the kernel stack (16 KBytes).
+#define DEFAULT_KERNEL_STACK_SIZE (8 * K)
 
-struct context {
-    uint32_t edi, esi, ebp, esp, ebx, edx, ecx, eax; // General-purpose registers
-    uint32_t eip;                                    // Instruction pointer
-};
+/// @brief Context of the processes in kernel mode.
+typedef struct {
+    uint32_t edi; //  +0
+    uint32_t esi; //  +4
+    uint32_t ebp; //  +8
+    uint32_t esp; // +12
+    uint32_t ebx; // +16
+    uint32_t edx; // +20
+    uint32_t ecx; // +24
+    uint32_t eax; // +28
+    uint32_t eip; // +32
+} task_kernel_context_t;
 
 /// @brief This structure is used to track the statistics of a process.
 /// @details
@@ -163,7 +173,10 @@ typedef struct task_struct {
     /// Buffer for managing inputs from keyboard.
     rb_keybuffer_t keyboard_rb;
 
-    struct context ctx;
+    /// The kernel-side context of the process.
+    task_kernel_context_t ctx;
+    /// The kernel stack of the process.
+    uint8_t kernel_stack[DEFAULT_KERNEL_STACK_SIZE];
 
     //==== Future work =========================================================
     // - task's attributes:
@@ -189,5 +202,3 @@ int process_create_init(const char *path);
 /// descriptor or NULL if the file descriptor is invalid or the file has been
 /// closed.
 vfs_file_descriptor_t *fget(int fd);
-
-void test_kernel_context_switch(void);

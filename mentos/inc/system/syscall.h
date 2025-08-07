@@ -410,3 +410,5 @@ long sys_fcntl(int fd, unsigned int request, unsigned long data);
 ///         a previously allocated memory area, the address of the
 ///         allocated space otherwise.
 void *sys_brk(void *addr);
+
+int sys_yield(void);

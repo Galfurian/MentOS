@@ -73,6 +73,8 @@ void scheduler_dequeue_task(task_struct *process);
 /// @param f The context of the process.
 void scheduler_run(pt_regs_t *f);
 
+void scheduler_yield(void);
+
 /// @brief Values from pt_regs to task_struct process.
 /// @param f       The set of registers we are saving.
 /// @param process The process for which we are saving the CPU registers status.

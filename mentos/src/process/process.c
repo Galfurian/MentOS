@@ -28,6 +28,8 @@
 #include "system/panic.h"
 #include "unistd.h"
 
+extern void common_return_to_user();
+
 /// Cache for creating the task structs.
 static kmem_cache_t *task_struct_cache;
 
@@ -90,7 +92,7 @@ static int __reset_process(task_struct *task)
 {
     pr_debug("__reset_process(%p `%s`)\n", task, task->name);
     // Create a new stack segment.
-    task->mm = mm_create_blank(DEFAULT_STACK_SIZE);
+    task->mm = mm_create_blank(DEFAULT_USER_STACK_SIZE);
     if (task->mm == NULL) {
         pr_err("Failed to initialize process mm structure.\n");
         return 0;
@@ -102,9 +104,9 @@ static int __reset_process(task_struct *task)
     paging_switch_pgd(task->mm->pgd);
 
     // Clean stack space.
-    memset((char *)task->mm->start_stack, 0, DEFAULT_STACK_SIZE);
+    memset((char *)task->mm->start_stack, 0, DEFAULT_USER_STACK_SIZE);
     // Set the base address of the stack.
-    task->thread.regs.ebp     = (uintptr_t)(task->mm->start_stack + DEFAULT_STACK_SIZE);
+    task->thread.regs.ebp     = (uintptr_t)(task->mm->start_stack + DEFAULT_USER_STACK_SIZE);
     // Set the top address of the stack.
     task->thread.regs.useresp = task->thread.regs.ebp;
     // Enable the interrupts.
@@ -327,6 +329,22 @@ static inline task_struct *__alloc_task(task_struct *source, task_struct *parent
     };
     // Initialize the ringbuffer.
     rb_keybuffer_init(&proc->keyboard_rb);
+
+    // Prepare the kernel stack for the child process.
+    memset(proc->kernel_stack, 0, DEFAULT_KERNEL_STACK_SIZE);
+    // Set the kernel stack pointer.
+    // Prepare the stack.
+    uintptr_t *stack_top = (uintptr_t *)(proc->kernel_stack + DEFAULT_KERNEL_STACK_SIZE);
+    *(--stack_top)       = (uintptr_t)common_return_to_user; // EIP
+    *(--stack_top)       = 0;                                // EDI
+    *(--stack_top)       = 0;                                // ESI
+    *(--stack_top)       = 0;                                // EBP
+    *(--stack_top)       = 0;                                // Dummy ESP
+    *(--stack_top)       = 0;                                // EBX
+    *(--stack_top)       = 0;                                // EDX
+    *(--stack_top)       = 0;                                // ECX
+    *(--stack_top)       = 0;                                // EAX
+    proc->ctx.esp        = (uintptr_t)stack_top;
 
     return proc;
 }
@@ -696,168 +714,8 @@ int sys_execve(pt_regs_t *f)
     return 0;
 }
 
-// === KERNEL CONTEXT SWITCH TEST ==================================================
-// This is a test for the kernel context switch. It is not used in the system.
-
-#define STACK_SIZE 4096
-
-typedef struct {
-    uint32_t edi; //  +0
-    uint32_t esi; //  +4
-    uint32_t ebp; //  +8
-    uint32_t esp; // +12
-    uint32_t ebx; // +16
-    uint32_t edx; // +20
-    uint32_t ecx; // +24
-    uint32_t eax; // +28
-    uint32_t eip; // +32
-} task_context_t;
-
-typedef struct task {
-    const char *name;
-    unsigned int pid;
-    task_context_t context;
-    uint8_t stack[STACK_SIZE];
-    list_head_t list;
-} task_t;
-
-extern void context_switch(task_context_t *old, task_context_t *new);
-
-void task_schedule(void);
-
-static list_head_t task_list;
-static task_t *current_task = NULL;
-
-void full_dump_task_information(const task_t *task)
+int sys_yield(void)
 {
-    const task_context_t *ctx = &task->context;
-    pr_info("Task (%s) context (CTX: %p):\n", task->name, ctx);
-    pr_info(" EAX: 0x%08x, EBX: 0x%08x, ECX: 0x%08x, EDX: 0x%08x\n", ctx->eax, ctx->ebx, ctx->ecx, ctx->edx);
-    pr_info(" ESI: 0x%08x, EDI: 0x%08x, EIP: 0x%08x\n", ctx->esi, ctx->edi, ctx->eip);
-    pr_info(" EBP: 0x%08x, ESP: 0x%08x\n", ctx->ebp, ctx->esp);
-    for (unsigned i = 0; i < 10; ++i) {
-        uintptr_t address = (uintptr_t)(ctx->esp) + (i * sizeof(uintptr_t));
-        uintptr_t value   = *(uintptr_t *)address;
-        pr_info("  [%2d] 0x%08x: 0x%08x\n", i, address, value);
-    }
-}
-
-void full_dump_task_list(void)
-{
-    pr_info("Task list (%p):\n", &task_list);
-    if (list_head_is_singular(&task_list)) {
-        pr_info("  No tasks in the system.\n");
-        return;
-    }
-    list_for_each_decl (it, &task_list) {
-        task_t *task = list_entry(it, task_t, list);
-        full_dump_task_information(task);
-    }
-}
-
-void task_body(void)
-{
-    assert(current_task && "No current task set.");
-
-    int count = current_task->pid;
-
-    pr_notice(">>> ----------------------------------\n");
-    pr_notice(">>> Task `%s` entered (pid:%4d, count: %4d).\n", current_task->name, current_task->pid, count);
-    while (1) {
-        pr_notice(">>> Task `%s` entered the while loop (pid:%4d, count: %4d).\n", current_task->name, current_task->pid, count);
-        task_schedule();
-        pr_notice(">>> Task `%s` came back from task_schedule and resuming (pid:%4d, count: %4d).\n", current_task->name, current_task->pid, count);
-        task_schedule();
-        count++;
-    }
-    __builtin_unreachable();
-}
-
-void task_schedule(void)
-{
-    pr_info(">>> \n");
-    pr_info(">>> =======================================================================================\n");
-
-    assert(current_task && "No current task set.");
-    task_t *prev = current_task;
-    task_t *next = NULL;
-
-    if (list_head_is_singular(&task_list)) {
-        pr_warning("Only one task in system; cannot schedule.\n");
-        return;
-    }
-
-    if (list_next_entry(prev, list) == list_entry(&task_list, task_t, list)) {
-        next = list_first_entry(&task_list, task_t, list);
-    } else {
-        next = list_next_entry(prev, list);
-    }
-
-    current_task = next;
-
-    pr_info(">>> Switching from task '%s' to '%s'\n", prev->name, next->name);
-    full_dump_task_information(prev);
-    full_dump_task_information(next);
-    context_switch(&prev->context, &next->context);
-
-    __builtin_unreachable();
-}
-
-void init_task(task_t *task, const char *name, void (*entry)(void))
-{
-    static unsigned int pid = 1;
-
-    memset(task, 0, sizeof(*task));
-    // Set the name of the task.
-    task->name           = name;
-    // Set the PID of the task.
-    task->pid            = pid++;
-    // Prepare the stack.
-    uintptr_t *stack_top = (uintptr_t *)(task->stack + STACK_SIZE);
-    *(--stack_top)       = (uintptr_t)entry; // EIP
-    *(--stack_top)       = 0;                // EDI
-    *(--stack_top)       = 0;                // ESI
-    *(--stack_top)       = 0;                // EBP
-    *(--stack_top)       = 0;                // Dummy ESP
-    *(--stack_top)       = 0;                // EBX
-    *(--stack_top)       = 0;                // EDX
-    *(--stack_top)       = 0;                // ECX
-    *(--stack_top)       = 0;                // EAX
-    task->context.esp    = (uintptr_t)stack_top;
-    list_head_init(&task->list);
-    list_head_insert_before(&task->list, &task_list);
-}
-
-void test_kernel_context_switch(void)
-{
-    pr_notice("Setting up kernel context switch test\n");
-
-    list_head_init(&task_list);
-
-    task_t task_a;
-    task_t task_b;
-    task_t task_c;
-
-    init_task(&task_a, "task_a", task_body);
-    init_task(&task_b, "task_b", task_body);
-    init_task(&task_c, "task_c", task_body);
-
-    pr_notice("task_body         = 0x%08x\n", (uintptr_t)&task_body);
-
-    full_dump_task_information(&task_a);
-    full_dump_task_information(&task_b);
-    full_dump_task_information(&task_c);
-
-    full_dump_task_list();
-
-    pr_notice("Switching from BOOT to task A...\n");
-
-    // Set the current task to task A.
-    current_task = &task_a;
-    // Set the context of task A.
-    context_switch(NULL, &task_a.context);
-
-    pr_crit("Returned from context_switch unexpectedly.\n");
-
-    __builtin_unreachable();
+    scheduler_yield();
+    return 0;
 }

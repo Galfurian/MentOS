@@ -374,7 +374,8 @@
 #define __NR_shmctl                 396 ///<  System-call number for `shmctl`
 #define __NR_shmdt                  397 ///<  System-call number for `shmdt`
 #define __NR_shmget                 398 ///<  System-call number for `shmget`
-#define SYSCALL_NUMBER              399 ///< The total number of system-calls.
+#define __NR_yield                  399 ///<  System-call number for `yield`
+#define SYSCALL_NUMBER              400 ///< The total number of system-calls.
 
 /// @brief Adjust the result of a system call and set errno if needed.
 /// @param value The variable where the result of the system call is stored.

@@ -14,3 +14,11 @@ pid_t fork(void)
     __inline_syscall_0(__res, fork);
     __syscall_return(pid_t, __res);
 }
+
+// _syscall0(int, yield)
+int yield(void)
+{
+    long __res;
+    __inline_syscall_0(__res, yield);
+    __syscall_return(int, __res);
+}

@@ -11,6 +11,8 @@ section .text
 
 global context_switch
 
+global common_return_to_user
+
 ; void context_switch(struct context *old, struct context *new);
 ; 
 ; @brief Perform a low-level context switch between two task contexts.
@@ -87,6 +89,28 @@ context_switch:
     popa
     pop ebx
     jmp ebx
+
+common_return_to_user:
+    add     esp, $4          ; remove esp from stack
+    ;---------------------------------------------------------------------------
+
+    ;==== Restore registers ====================================================
+    ; restore segment registers
+    pop gs
+    pop fs
+    pop es
+    pop ds
+
+    ; restore registers: eax, ecx, edx, ebx, esp, ebp, esi, edi
+    popa
+    ;---------------------------------------------------------------------------
+
+    ; Cleanup error code and IRQ #
+    add esp, $8
+
+    ; return to process
+    iret                        ; pops 5 things at once:
+                                ;   CS, EIP, EFLAGS, SS, and ESP
 
 ; -----------------------------------------------------------------------------
 ; SECTION (note) - Inform the linker that the stack does not need to be executable

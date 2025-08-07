@@ -101,3 +101,5 @@ float randfloat(float lb, float ub);
 /// @brief Wrapper for exit system call.
 /// @param status The exit status.
 void exit(int status);
+
+int yield(void);

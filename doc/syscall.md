@@ -381,3 +381,4 @@ If the column is empty it means that it's not implemented yet.
 |   | 0x180  | sys_arch_prctl             | arch/x86/kernel/process_32.c       | int option, unsigned long arg2                                                                                                                 |
 |   | 0x181  | sys_io_pgetevents          | fs/aio.c                           | aio_context_t ctx_id, long min_nr, long nr, struct io_event \*events, struct \_\_kernel_timespec \*timeout, const struct \_\_aio_sigset \*usig |
 |   | 0x182  | sys_rseq                   | kernel/rseq.c                      | struct rseq \*rseq, u32 rseq_len, int flags, u32 sig                                                                                           |
+|   | 0x183  | sys_yield                  |                                    |                                                                                                                                                |
